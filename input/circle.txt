@@ -1,0 +1,5 @@
+Version=1.0
+shapeType=Circle
+TP=ftPad
+FeatureIndex=0
+56967461, 88921796, 750000
