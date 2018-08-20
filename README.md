@@ -64,6 +64,8 @@ FeatureIndex=0
 
 圓頭線，是指：從點 1 畫一個圓，拖曳到點 2 的形狀，有 x1, y1, x2, y2, radius 五個數值。
 
+![img](https://github.com/eastektw/shape-viewer/blob/master/images/shape-line.png)
+
 #### Format
 
 ```
@@ -87,6 +89,8 @@ FeatureIndex=0
 ### Arc
 
 圓頭弧，是指：是指：從點 S 畫一個圓，繞著點 C 拖曳到點 E 的形狀，有 xs, ys, xe, ye, xc, yc, radius, counter 八個數值。
+
+![img](https://github.com/eastektw/shape-viewer/blob/master/images/shape-arc.png)
 
 #### Format
 
@@ -135,6 +139,8 @@ FeatureIndex=1
 ### Contour
 
 多邊形集合。此處的 Contour 為可能帶任意多洞的多邊形集合。所謂的 "洞" 是指：多邊形內部可能穿透過去的多邊形區域。
+
+![img](https://github.com/eastektw/shape-viewer/blob/master/images/shape-contour.png)
 
 #### Format
 
