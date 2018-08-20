@@ -39,7 +39,11 @@ https://www.figma.com/proto/dbCUpxQglJKuOgPGMzrIfEQx/Shape-Viewer?node-id=3%3A36
 
 ### Circle
 
-圓形，有 X, Y, 半徑 三個數值。
+圓形，有 X, Y, radius 三個數值。
+
+* x: 中心 X 座標
+* y: 中心 y 座標
+* radius: 半徑
 
 #### Format
 
@@ -64,6 +68,12 @@ FeatureIndex=0
 ### Line
 
 圓頭線，是指：從點 1 畫一個圓，拖曳到點 2 的形狀，有 x1, y1, x2, y2, radius 五個數值。
+
+* x1: 點 1 的 X 座標
+* y1: 點 1 的 y 座標
+* x2: 點 2 的 X 座標
+* y2: 點 2 的 y 座標
+* radius: 半徑
 
 ![img](https://github.com/eastektw/shape-viewer/blob/master/images/shape-line.png)
 
@@ -91,6 +101,15 @@ FeatureIndex=0
 
 圓頭弧，是指：是指：從點 S 畫一個圓，繞著點 C 拖曳到點 E 的形狀，有 xs, ys, xe, ye, xc, yc, radius, counter 八個數值。
 
+* xs: 起始點 X 座標
+* ys: 起始點 Y 座標
+* xe: 結束點 X 座標
+* ye: 結束點 Y 座標
+* xc: 圓心 X 座標
+* yc: 圓心 Y 座標
+* radius: 圓頭的半徑
+* counter: 順或逆時針，scCW=順時針，scCCW=逆時針
+
 ![img](https://github.com/eastektw/shape-viewer/blob/master/images/shape-arc.png)
 
 #### Format
@@ -116,6 +135,11 @@ FeatureIndex=0
 ### Rect
 
 矩形。有 x, y, half_width, half_height 四個數值。
+
+* x: 中心點 x 座標
+* y: 中心點 y 座標
+* half_width: 矩形寬度的一半
+* half_height: 舉行高度的一半
 
 #### Format
 
