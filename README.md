@@ -34,7 +34,8 @@ https://www.figma.com/proto/dbCUpxQglJKuOgPGMzrIfEQx/Shape-Viewer?node-id=3%3A36
 
 ## 檔案格式
 
-注意：以下所有出現的座標數值，當顯示在界面上，須除以一千萬 (10000000)
+* 注意：以下所有出現的座標數值，當顯示在界面上，須除以一千萬 (10000000)
+* 在 input 資料夾下有範例檔案。
 
 ### Circle
 
