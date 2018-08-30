@@ -1,0 +1,5 @@
+Version=1.0
+shapeType=Arc
+TP=ftArc
+FeatureIndex=0
+64930096, 86466650, 62120549, 72617395, 63735701, 79499344, 1000000, scCW

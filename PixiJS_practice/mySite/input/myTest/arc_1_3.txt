@@ -1,0 +1,5 @@
+Version=1.0
+shapeType=Arc
+TP=ftArc
+FeatureIndex=0
+3000000, 4000000, -3000000, -4000000, 0, 0, 500000, scCW
