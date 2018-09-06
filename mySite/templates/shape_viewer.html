@@ -50,24 +50,31 @@
                 padding: 10px;
                 font-size: 20px;
                 font-weight: bold;
+                background: #e5e5e5;
                 border: 1px solid #000000;
+                cursor: pointer;
             }
 
             .fileName {
                 width: 65%;
                 border: 1px solid #000000;
+                background: #eb5757;
             }
             
             .visible {
-                width: 10%;
-                background: #cccccc;  
+                width: 12%;
+                background: #e5e5e5;  
                 border-top: 1px solid #000000;
                 border-bottom: 1px solid #000000;
             }
 
+            .visible:hover {
+                cursor: pointer;
+            }
+
             .delete {
                 width: 10%;
-                background: #cccccc;
+                background: #e5e5e5;
                 border: 1px solid #000000;
             }
 
@@ -111,25 +118,27 @@
         
             <div style="display: inline-block; height: 80px;"></div>
             
-            <div id="images">
+            <div id="imageStates">
                 <div align="center" hidden style="display: none; width:80%; height:25px; margin:7.5%;" id="imageLayerTemplate">
                     <span class="fileName">test.txt</span>
-                    <span class="visible">ON</span>
+                    <span class="visible" onclick="hideImage(this)">ON</span>
                     <span class="delete" onclick="deleteImageLayer(this)">X</span>
                 </div>
             </div>
         </div>
         
         <div id="content">
-            <div class="function_menu">
-                <button class="function_button">Zoom</button>
+            <div class="function_menu" id="functionMenu">
+                <button class="function_button" onclick="setZoomMode(this)">Zoom</button>
                 <button class="function_button">Measure</button>
-                <button class="function_button">Query</button>
+                <button class="function_button" onclick="setQueryMode(this)">Query</button>
+                <button class="function_button" onclick="backHome()">Home</button>
             </div>
 
             <span id="prompt"></span>
         </div>
 
+        <script src="/static/ImageLayer.js"></script>
         <script src="/static/shape_viewer.js"></script>
     </body>
 </html>
