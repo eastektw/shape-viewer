@@ -2,7 +2,7 @@
 Shape 瀏覽工具
 
 可上傳 shape 文件，產生圖層，在畫布中繪製形狀，並使用滑鼠放大、縮小及查看資訊。
-
+網址: https://afternoon-brushlands-70193.herokuapp.com/shape_viewer/
 
 ## 功能
 
