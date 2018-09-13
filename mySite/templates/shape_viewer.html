@@ -58,7 +58,13 @@
             .fileName {
                 width: 65%;
                 border: 1px solid #000000;
-                background: #eb5757;
+
+                -webkit-user-select: none;
+                -khtml-user-select: none;
+                -moz-user-select: none;
+                -ms-user-select: none;
+                -o-user-select: none;
+                user-select: none;
             }
             
             .visible {
@@ -66,6 +72,13 @@
                 background: #e5e5e5;  
                 border-top: 1px solid #000000;
                 border-bottom: 1px solid #000000;
+
+                -webkit-user-select: none;
+                -khtml-user-select: none;
+                -moz-user-select: none;
+                -ms-user-select: none;
+                -o-user-select: none;
+                user-select: none;
             }
 
             .visible:hover {
@@ -76,6 +89,13 @@
                 width: 10%;
                 background: #e5e5e5;
                 border: 1px solid #000000;
+
+                -webkit-user-select: none;
+                -khtml-user-select: none;
+                -moz-user-select: none;
+                -ms-user-select: none;
+                -o-user-select: none;
+                user-select: none;
             }
 
             .delete:hover {
@@ -98,6 +118,13 @@
                 width: 100%;/*設定寬度為100%*/
                 height: 80px;/*設定高度為300px*/
                 border-bottom: 2px solid #000000;
+
+                -webkit-user-select: none;
+                -khtml-user-select: none;
+                -moz-user-select: none;
+                -ms-user-select: none;
+                -o-user-select: none;
+                user-select: none;
             }
 
             #prompt {
@@ -107,13 +134,20 @@
                 position: absolute;
                 bottom: 20px;
                 right: 20px;
+
+                -webkit-user-select: none;
+                -khtml-user-select: none;
+                -moz-user-select: none;
+                -ms-user-select: none;
+                -o-user-select: none;
+                user-select: none;
             }
         </style>
 
         {% load static %}
         <script src="{% static 'pixi.js/pixi.min.js' %}"></script>
     </head>
-    <body>
+    <body onresize="resize()">
         <div class="image_menu">
         
             <div style="display: inline-block; height: 80px;"></div>
@@ -138,7 +172,6 @@
             <span id="prompt"></span>
         </div>
 
-        <script src="/static/ImageLayer.js"></script>
         <script src="/static/shape_viewer.js"></script>
     </body>
 </html>
