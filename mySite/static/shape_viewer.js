@@ -26,6 +26,7 @@ var content = document.getElementById("content");
 var imageStates = document.getElementById("imageStates");
 var functionMenu = document.getElementById("functionMenu");
 var prompt = document.getElementById("prompt");
+var imageAttributes = document.getElementById("imageAttributes");
 
 var mousePosition;
 var mode = "default";
@@ -35,6 +36,7 @@ var isClickOnShape = false;
 var drawCount = 0;
 var color;
 var chosenShape;
+var chosenShapeColor;
 
 var imageLayers = [];
 
@@ -56,14 +58,12 @@ images.interactive = true;
 app.stage.addChild(images);
 app.ticker.add(imagesMove);
 
+var points = new Container();
 var shapes = new Container();
 shapes.isEmpty = function() {
     return shapes.children.length <= 0;
 };
 images.addChild(shapes);
-
-var points = new Container();
-images.addChild(points);
 
 //for "zoom" mode and mousePosition
 var selectionRect = new Graphics();
@@ -113,7 +113,7 @@ content.ondrop = function(event) {
         if (file.isValid()) {
             addImageLayer(file);
         }
-        else{
+        else {
             alert("Invalid file format!");
         }
     };
@@ -160,7 +160,7 @@ content.onwheel = function(event) {
     if (images.scale.x <= 1) {
         scaleChange = 0.1;
     }
-    else{
+    else {
         scaleChange = 0.5;
     }
 
@@ -275,6 +275,7 @@ document.onmouseup = function() {
     if (!isClickOnShape) {
         selectionRect.clear();
         chosenShape = undefined;
+        imageAttributes.innerHTML = "";
     }
 };
 
@@ -352,7 +353,7 @@ function drawLine(attributes) {
     line.hitArea = new Rectangle(hitRectX, hitRectY, hitRectWidth, hitRectHeight);
 
     line.click = function() {
-        if(mode != "zoom"){
+        if (mode != "zoom") {
             var theta = Math.atan((args[1] - args[3]) / (args[0] - args[2]));
             if (args[2] < args[0]) {
                 theta += Math.PI;
@@ -377,6 +378,12 @@ function drawLine(attributes) {
                 .arc(args[2], -args[3], args[4], startAngle, endAngle, true)
                 .lineTo(args[0] - xDisplacement, -args[1] - yDisplacement, 2)
                 .arc(args[0], -args[1], args[4], endAngle, startAngle, true)
+
+            imageAttributes.innerHTML = "";
+            for(var i = 0; i < 4; i< i++) {
+                imageAttributes.innerHTML += attributes[i];
+                imageAttributes.innerHTML += "<br>";
+            }
 
             isClickOnShape = true;
             addClickTwiceListener(line);
@@ -425,11 +432,11 @@ function drawArc(attributes) {
     }
 
     var arc = new Graphics();
-    if(startAngle == endAngle){
+    if (startAngle == endAngle) {
         arc.lineStyle(lineWidth=args[6] * 2, color=color)
             .drawCircle(args[4], -args[5], radius);
     }
-    else{
+    else {
         arc.lineStyle(lineWidth=args[6] * 2, color=color)
             .moveTo(args[0], -args[1])
             .arc(args[4], -args[5], radius, startAngle, endAngle, antiClockwise)
@@ -442,15 +449,15 @@ function drawArc(attributes) {
 
     arc.interactive = true;
     arc.hitArea = new Circle(args[4], -args[5], radius + args[6]);
-    arc.click = function(){
+    arc.click = function() {
         if (mode != "zoom") {
-            if(startAngle == endAngle){
+            if (startAngle == endAngle) {
                 selectionRect.clear()
                     .lineStyle(lineWidth=LINE_WIDTH)
                     .drawCircle(args[4], -args[5], radius + args[6])
                     .drawCircle(args[4], -args[5], radius - args[6])
             }
-            else{
+            else {
                 selectionRect.clear()
                     .lineStyle(lineWidth=LINE_WIDTH)
                     .moveTo(args[0] + Math.cos(startAngle) * args[6], -args[1] + Math.sin(startAngle) * args[6])
@@ -458,6 +465,12 @@ function drawArc(attributes) {
                     .arc(args[2], -args[3], args[6], endAngle, startAngle, antiClockwise)
                     .arc(args[4], -args[5], radius - args[6], endAngle, startAngle, !antiClockwise)
                     .arc(args[0], -args[1], args[6], endAngle, startAngle, antiClockwise)
+            }
+
+            imageAttributes.innerHTML = "";
+            for(var i = 0; i < 4; i< i++) {
+                imageAttributes.innerHTML += attributes[i];
+                imageAttributes.innerHTML += "<br>";
             }
 
             isClickOnShape = true;
@@ -513,6 +526,12 @@ function drawRectangle(attributes) {
                 .lineTo(args[0], -args[1] + args[3] )
                 .lineTo(args[0], -args[1])
 
+            imageAttributes.innerHTML = "";
+            for(var i = 0; i < 4; i< i++) {
+                imageAttributes.innerHTML += attributes[i];
+                imageAttributes.innerHTML += "<br>";
+            }
+
             isClickOnShape = true;
             addClickTwiceListener(rectangle);
         }
@@ -555,6 +574,12 @@ function drawCircle(attributes) {
                 .lineStyle(lineWidth=LINE_WIDTH)
                 .drawCircle(args[0], -args[1], args[2]);
 
+            imageAttributes.innerHTML = "";
+            for(var i = 0; i < 4; i< i++) {
+                imageAttributes.innerHTML += attributes[i];
+                imageAttributes.innerHTML += "<br>";
+            }
+
             isClickOnShape = true;
             addClickTwiceListener(circle);
         }
@@ -582,11 +607,11 @@ function drawContour(attributes) {
 
     polygonCount = parseInt(attributes[4]);
 
-    for(var i = 0, j = 5; i < polygonCount; i++){
+    for(var i = 0, j = 5; i < polygonCount; i++) {
         var pointCount = parseInt(attributes[j++]);
 
         args[i] = [];
-        for(var k = 0; k < pointCount; k++){
+        for(var k = 0; k < pointCount; k++) {
             var tempArg = attributes[j++].split(", ");
 
             args[i].push(parseInt(tempArg[0]) / HUNDRED_THOUSAND);
@@ -598,7 +623,7 @@ function drawContour(attributes) {
         .beginFill(color)
         .drawPolygon(args[0]);
 
-    for(var i = 1; i < polygonCount; i++){
+    for(var i = 1; i < polygonCount; i++) {
         polygon.drawPolygon(args[i]).addHole();
     }
 
@@ -606,14 +631,20 @@ function drawContour(attributes) {
 
     polygon.interactive = true;
     polygon.hitArea = new Polygon(args[0]);
-    polygon.click = function(){
+    polygon.click = function() {
         if (mode != "zoom") {
             selectionRect.clear()
                 .lineStyle(lineWidth=LINE_WIDTH)
                 .moveTo(args[0][args[0].length - 2], args[0][args[0].length - 1]);
 
-            for(var i = 0; i < args[0].length; i += 2){
+            for(var i = 0; i < args[0].length; i += 2) {
                 selectionRect.lineTo(args[0][i], args[0][i + 1]);
+            }
+
+            imageAttributes.innerHTML = "";
+            for(var i = 0; i < 4; i< i++) {
+                imageAttributes.innerHTML += attributes[i];
+                imageAttributes.innerHTML += "<br>";
             }
 
             isClickOnShape = true;
@@ -625,8 +656,8 @@ function drawContour(attributes) {
         setCenter(args[0][0], args[0][1]);
     }
 
-    for(var i = 0; i < args.length; i++){
-        for(var j = 0; j < args[i].length; j += 2){
+    for(var i = 0; i < args.length; i++) {
+        for(var j = 0; j < args[i].length; j += 2) {
             newImageLayer.points.push(drawPoint(args[i][j], args[i][j + 1]));
         }
     }
@@ -640,12 +671,14 @@ function drawContour(attributes) {
 
 
 function addClickTwiceListener(shape) {
-    if(chosenShape == shape){
+    if (chosenShape == shape) {
         shapes.setChildIndex(shape, 0);
         selectionRect.clear();
         chosenShape = undefined;
+
+        imageAttributes.innerHTML = "";
     }
-    else{
+    else {
         chosenShape = shape;
     }
 }
@@ -755,6 +788,8 @@ function setQueryMode() {
     mode = "query";
 
     functionMenu.childNodes[5].style.backgroundColor = "#6fcf97";
+
+    images.addChild(points);
 }
 
 
@@ -787,7 +822,7 @@ function backHome() {
                     minY = imageLayers[i].points[j].yCoordinate;
                 }
             }
-            else{
+            else {
                 maxX = minX = imageLayers[i].points[j].xCoordinate;
                 maxY = minY = imageLayers[i].points[j].yCoordinate;
             }
@@ -808,6 +843,8 @@ function backHome() {
     centerX = (maxX + minX) / 2;
     centerY = (maxY + minY) / 2;
     setCenter(centerX, centerY);
+
+    images.removeChild(points);
 }
 
 
