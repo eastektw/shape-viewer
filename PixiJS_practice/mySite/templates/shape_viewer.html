@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Shape viewer</title>
+
+        <style>
+            body {
+                margin: 0%;
+            }
+
+            table {
+                border-collapse: collapse;
+            }
+            
+            tr {
+                height: 35px;
+                font-size: 20px;
+            }
+
+            td {
+                padding: 3px;
+                text-align: center;
+                font-weight: bold;
+                font-family: Arial, Helvetica, sans-serif;
+            }
+
+            span {
+                float: left;
+                padding: 5px;
+                height: 25px;
+                text-align: center;
+                font-size: 20px;
+                font-weight: bold;
+                font-family: Arial, Helvetica, sans-serif;
+            }
+
+            .image_menu {
+                height: 100vh;
+                width: 25vw;
+                float: left;
+                border-right: 2px solid #000000;
+            }
+
+            .function_button {
+                height: 50px;
+                width: 120px;
+                margin-top: 15px;
+                margin-bottom: 15px;
+                margin-left: 15px;
+                padding: 10px;
+                font-size: 20px;
+                font-weight: bold;
+                border: 1px solid #000000;
+            }
+
+            .fileName {
+                width: 65%;
+                border: 1px solid #000000;
+            }
+            
+            .visible {
+                width: 10%;
+                background: #cccccc;  
+                border-top: 1px solid #000000;
+                border-bottom: 1px solid #000000;
+            }
+
+            .delete {
+                width: 10%;
+                background: #cccccc;
+                border: 1px solid #000000;
+            }
+
+            .delete:hover {
+                background: #ff4d4d;
+                cursor: pointer;
+            }
+
+            #fakeMargin {
+                height: 10px;
+                display: inline-block;
+            }
+
+            #content {
+                height: 100vh;
+                width: 73vw;
+                float: left;
+            }
+
+            #content .function_menu {
+                width: 100%;/*設定寬度為100%*/
+                height: 80px;/*設定高度為300px*/
+                border-bottom: 2px solid #000000;
+            }
+
+            #prompt {
+                font-size: 25px;
+                font-weight: bold;
+                font-family: Arial, Helvetica, sans-serif;
+                position: absolute;
+                bottom: 20px;
+                right: 20px;
+            }
+        </style>
+
+        {% load static %}
+        <script src="{% static 'pixi.js/pixi.min.js' %}"></script>
+    </head>
+    <body>
+        <div class="image_menu">
+        
+            <div style="display: inline-block; height: 80px;"></div>
+            
+            <div id="images">
+                <div align="center" hidden style="display: none; width:80%; height:25px; margin:7.5%;" id="imageLayerTemplate">
+                    <span class="fileName">test.txt</span>
+                    <span class="visible">ON</span>
+                    <span class="delete" onclick="deleteImageLayer(this)">X</span>
+                </div>
+            </div>
+        </div>
+        
+        <div id="content">
+            <div class="function_menu">
+                <button class="function_button">Zoom</button>
+                <button class="function_button">Measure</button>
+                <button class="function_button">Query</button>
+            </div>
+
+            <span id="prompt"></span>
+        </div>
+
+        <script src="/static/shape_viewer.js"></script>
+    </body>
+</html>

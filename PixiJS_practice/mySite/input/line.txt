@@ -1,0 +1,5 @@
+Version=1.0
+shapeType=Line
+TP=ftLine
+FeatureIndex=0
+42904234, 83890263, 51592682, 86466650, 500000

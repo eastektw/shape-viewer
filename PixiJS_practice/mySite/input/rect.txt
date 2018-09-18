@@ -1,0 +1,5 @@
+Version=1.0
+shapeType=Rect
+TP=ftPad
+FeatureIndex=1
+54844091, 78172239, 1750000, 800000
