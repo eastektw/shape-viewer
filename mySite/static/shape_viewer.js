@@ -9,6 +9,7 @@ var Polygon = PIXI.Polygon;
 
 const HUNDRED_THOUSAND = 100000;
 const THOUSANDTH = 0.001;
+const MAX_POINTS_COUNT = 32768;  // 2 ** 15
 const LINE_WIDTH = 1.5;
 const COLORS = [
     0xeb5757,
@@ -339,7 +340,7 @@ function line(attributes) {
     line.yE = -args[3];
     line.penRadius = args[4];
 
-    newImageLayer.image = line;
+    newImageLayer.image = [line];
     newImageLayer.points = [
         point(line.xS, line.yS),
         point(line.xE, line.yE)
@@ -442,7 +443,7 @@ function arc(attributes) {
     if (arc.xE < arc.xC)
         arc.endAngle += Math.PI;
 
-    newImageLayer.image = arc;
+    newImageLayer.image = [arc];
     newImageLayer.points = [point(arc.xC, arc.yC)];
     if (arc.startAngle != arc.endAngle){
         newImageLayer.points.push(point(arc.xS, arc.yS));
@@ -505,20 +506,17 @@ function drawArcFrame(arc) {
     else {
         selectionRect.clear()
             .lineStyle(LINE_WIDTH)
-            .moveTo(arc.xS + Math.cos(arc.startAngle) * arc.penRadius,
-                arc.yS + Math.sin(arc.startAngle) * arc.penRadius)
-
             .arc(arc.xC, arc.yC, arc.radius + arc.penRadius,
                 arc.startAngle, arc.endAngle, arc.antiClockwise)
 
             .arc(arc.xE, arc.yE, arc.penRadius,
-                arc.endAngle, arc.startAngle, arc.antiClockwise)
+                arc.endAngle, arc.endAngle + Math.PI, arc.antiClockwise)
 
             .arc(arc.xC, arc.yC, arc.radius - arc.penRadius,
                 arc.endAngle, arc.startAngle, !arc.antiClockwise)
 
             .arc(arc.xS, arc.yS, arc.penRadius,
-                arc.endAngle, arc.startAngle, arc.antiClockwise)
+                arc.startAngle + Math.PI, arc.startAngle, arc.antiClockwise)
     }
 }
 
@@ -533,7 +531,7 @@ function rectangle(attributes) {
     rectangle._width = args[2];
     rectangle._height = args[3];
 
-    newImageLayer.image = rectangle;
+    newImageLayer.image = [rectangle];
     newImageLayer.points = [
         point(rectangle._x, rectangle._y),
         point(rectangle._x + rectangle._width, rectangle._y),
@@ -597,7 +595,7 @@ function circle(attributes) {
     circle._y = -args[1];
     circle.radius = args[2];
 
-    newImageLayer.image = circle;
+    newImageLayer.image = [circle];
     newImageLayer.points = [point(args[0], -args[1])];
 
     drawCircle(circle);
@@ -644,7 +642,7 @@ function drawCircleFrame(circle) {
 
 function contour(attributes) {
     var newImageLayer = {"points": []};
-    var polygon = new Graphics();
+    var polygon = {"graphics": []};
     var args = [];
 
     polygon.polygonCount = parseInt(attributes[4]);
@@ -661,7 +659,7 @@ function contour(attributes) {
         }
     }
 
-    newImageLayer.image = polygon;
+    newImageLayer.image = polygon.graphics;
     for(var i = 0; i < args.length; i++) {
         for(var j = 0; j < args[i].length; j += 2) {
             newImageLayer.points.push(point(args[i][j], args[i][j + 1]));
@@ -674,36 +672,320 @@ function contour(attributes) {
     if (shapes.isEmpty())
         setCenter(args[0][0], args[0][1]);
 
-    shapes.addChild(polygon);
+    for (var i = 0; i < polygon.graphics.length; i++) {
+        shapes.addChild(polygon.graphics[i]);
+    }
 
     return newImageLayer;
 }
 
 
-function drawPolygon(polygon, args) {
-    polygon
-        .beginFill(color)
-        .drawPolygon(args[0]);
+function addClickTwiceListener(shape) {
+    if (chosenShape == shape) {
+        shapes.setChildIndex(shape, 0);
+        selectionRect.clear();
+        chosenShape = undefined;
+        imageAttributes.innerHTML = "";
+    }
+    else {
+        chosenShape = shape;
+    }
+}
 
-    for(var i = 1; i < polygon.polygonCount; i++) {
-        polygon.drawPolygon(args[i]).addHole();
+
+function drawPolygon(polygon, args) {
+    var outerCoordinates = args[0];
+    var holes = [];
+
+    var tempRange = getRange(outerCoordinates);
+    outerCoordinates.maxX = tempRange.maxX;
+    outerCoordinates.minX = tempRange.minX;
+        
+    for (var i = 1; i < polygon.polygonCount; i++) {
+        holes.push(hole(args[i]));
     }
 
-    polygon.endFill();
+    var cutInfo = getCutInfo(outerCoordinates, holes);
+    var cuttingLineX = cutInfo.cuttingLineX;
+    var readyToDig = cutInfo.readyToDig;
+    var needToDivide = cutInfo.needToDivide;
+
+    var unfinishedPart = divideIntoTwoParts(outerCoordinates, cuttingLineX);
+    var drawingPart = unfinishedPart.left;
+
+    while (cuttingLineX != outerCoordinates.maxX) {
+        var tempPolygon = new Graphics()
+            .beginFill(color)
+            .drawPolygon(drawingPart);
+
+        for(var i = 0; i < readyToDig.length; i++) {
+            tempPolygon.drawPolygon(readyToDig[i].coordinates).addHole();
+        }
+
+        for(var i = 0; i < needToDivide.length; i++) {
+            var dividingHole = divideIntoTwoParts(needToDivide[i].coordinates, cuttingLineX);
+
+            if (dividingHole.left.length)
+                tempPolygon.drawPolygon(dividingHole.left).addHole();
+
+            if (dividingHole.right.length)
+                holes.push(hole(dividingHole.right));
+        }        
+
+        tempPolygon.endFill();
+        polygon.graphics.push(tempPolygon);
+
+        // prepare for the next drawing
+        cutInfo = getCutInfo(outerCoordinates, holes);
+        cuttingLineX = cutInfo.cuttingLineX;
+        readyToDig = cutInfo.readyToDig;
+        needToDivide = cutInfo.needToDivide;
+
+        unfinishedPart = divideIntoTwoParts(unfinishedPart.right, cuttingLineX);
+        drawingPart = unfinishedPart.left;
+    }
+
+    // draw the last polygon
+    var tempPolygon = new Graphics()
+        .beginFill(color)
+        .drawPolygon(drawingPart);
+
+    for(var i = 0; i < readyToDig.length; i++) {
+        tempPolygon.drawPolygon(readyToDig[i].coordinates).addHole();
+    }
+
+    tempPolygon.endFill();
+    polygon.graphics.push(tempPolygon);
+}
+
+
+function hole(coordinates) {
+    var tempHole = {};
+    var tempRange = getRange(coordinates);
+
+    tempHole.coordinates = coordinates;
+    tempHole.maxX = tempRange.maxX;
+    tempHole.minX = tempRange.minX;
+
+    return tempHole;
+}
+
+
+function getRange(coordinates) {
+    var range = {};
+
+    for(var i = 0; i < coordinates.length; i += 2) {
+        if (range.maxX != undefined) {
+            if (coordinates[i] > range.maxX) {
+                range.maxX = coordinates[i];
+            }
+            else if (coordinates[i] < range.minX) {
+                range.minX = coordinates[i];
+            }
+
+            if (coordinates[i + 1] > range.maxY) {
+                range.maxY = coordinates[i + 1];
+            }
+            else if (coordinates[i + 1] < range.minY) {
+                range.minY = coordinates[i + 1];
+            }
+        }
+        else {
+            range.maxX = range.minX = coordinates[i];
+            range.maxY = range.minY = coordinates[i + 1];
+        }
+    }
+
+    return range
+}
+
+
+function getCutInfo(outerCoordinates, holes) {
+    var cuttingLineX;
+    var pointsCount = outerCoordinates.length / 2;
+    var readyToDig = [];
+    var needToDivide = [];
+
+    while (pointsCount < MAX_POINTS_COUNT && holes.length) {
+        holes.sort(compareMaxX);
+        cuttingLineX = holes[0].maxX;
+        needToDivide.push(holes[0]);
+        holes.splice(0, 1);
+
+        holes.sort(compareMinX);
+        while (holes.length) {
+            if (holes[0].minX < cuttingLineX) {
+                pointsCount += holes[0].coordinates.length / 2;
+                needToDivide.push(holes[0]);
+                holes.splice(0, 1);
+            }
+            else {
+                break;
+            }
+        }
+    }
+
+    if (!holes.length) {
+        cuttingLineX = getRange(outerCoordinates).maxX;
+    }
+
+    needToDivide.sort(compareMaxX);
+    for (var i = 0; i < needToDivide.length; i++) {
+        if (needToDivide[i].maxX <= cuttingLineX) {
+            readyToDig.push(needToDivide[i]);
+        }
+        else {
+            needToDivide.splice(0, i);
+            break;
+        }
+    }
+
+    return {"cuttingLineX": cuttingLineX, 
+            "readyToDig": readyToDig,
+            "needToDivide": needToDivide};
+}
+
+
+function compareMaxX(holeX, holeY) {
+    if (holeX.maxX > holeY.maxX) {
+        return 1;
+    }
+    else if (holeX.maxX == holeY.maxX) {
+        if (holeX.minX > holeY.minY) {
+            return 1;
+        }
+        else if (holeX.minX == holeY.minX) {
+            return 0;
+        }
+        else{
+            return -1;
+        }
+    }
+    else {
+        return -1;
+    }
+}
+
+
+function compareMinX(holeX, holeY) {
+    if (holeX.minX > holeY.minX) {
+        return 1;
+    }
+    else if (holeX.minX == holeY.minX) {
+        if (holeX.maxX > holeY.maxX) {
+            return 1;
+        }
+        else if (holeX.maxX == holeY.maxX) {
+            return 0;
+        }
+        else{
+            return -1;
+        }
+    }
+    else {
+        return -1;
+    }
+}
+
+
+function divideIntoTwoParts(coordinates, x) {
+    //以 X = x 為中心線，將坐標點分到兩個象限，左為 -1，右為 1，剛好在線上為 0
+
+    var leftPart = [];
+    var rightPart = [];
+
+    var lastPart = 0;
+
+    for (var i = 0; i < coordinates.length; i += 2) {
+        if (coordinates[i] < x) {
+            if (lastPart == 1) {
+                var tempY = getY(
+                    coordinates[i - 2], coordinates[i - 1],
+                    coordinates[i], coordinates[i + 1], x);
+
+                leftPart.push(x);
+                leftPart.push(tempY);
+                rightPart.push(x);
+                rightPart.push(tempY);
+            }
+            lastPart = -1;
+
+            leftPart.push(coordinates[i]);
+            leftPart.push(coordinates[i + 1]);
+        }
+        else if (coordinates[i] == x) {
+            lastPart = 0;
+
+            leftPart.push(coordinates[i]);
+            leftPart.push(coordinates[i + 1]);
+            rightPart.push(coordinates[i]);
+            rightPart.push(coordinates[i + 1]);            
+        }
+        else {
+            if (lastPart == -1) {
+                var tempY = getY(
+                    coordinates[i - 2], coordinates[i - 1],
+                    coordinates[i], coordinates[i + 1], x);
+
+                leftPart.push(x);
+                leftPart.push(tempY);
+                rightPart.push(x);
+                rightPart.push(tempY);
+            }
+            lastPart = 1;
+
+            rightPart.push(coordinates[i]);
+            rightPart.push(coordinates[i + 1]);
+        }
+    }
+
+    var lastXIndex = coordinates.length - 2;
+    if ((coordinates[0] > x && coordinates[lastXIndex] < x) ||
+        (coordinates[0] < x && coordinates[lastXIndex] > x)) {
+        var tempY = getY(
+            coordinates[0], coordinates[1],
+            coordinates[lastXIndex], coordinates[lastXIndex + 1], x);
+
+        leftPart.push(x);
+        leftPart.push(tempY);
+        rightPart.push(x);
+        rightPart.push(tempY);
+    }
+
+    return {"left": leftPart, "right": rightPart};
+}
+
+// 給定兩點(x1, y1), (x2, y2)，求 X = x3 與該兩點形成的直線的交點的 y
+function getY(x1, y1, x2, y2, x3) {
+    var slope = (y1 - y2) / (x1 - x2);
+
+    return y1 + (x3 - x1) * slope;
 }
 
 
 function setPolygonInteraction(polygon, attributes, args) {
-    polygon.interactive = true;
-    polygon.hitArea = new Polygon(args[0]);
+    polygon.graphics[0].interactive = true;
+    polygon.graphics[0].hitArea = new Polygon(args[0]);
 
-    polygon.click = function() {
+    polygon.graphics[0].click = function() {
         if (mode != "zoom") {
             isClickOnShape = true;
 
             drawPolygonFrame(args);
             setImageAttributes(attributes);
-            addClickTwiceListener(polygon);
+            
+            if (chosenShape == polygon.graphics[0]) {
+                for (var i = 0; i < polygon.graphics.length; i++) {
+                    shapes.setChildIndex(polygon.graphics[i], 0);
+                }
+
+                selectionRect.clear();
+                chosenShape = undefined;
+                imageAttributes.innerHTML = "";
+            }
+            else {
+                chosenShape = polygon.graphics[0];
+            }
         }
     };
 }
@@ -737,19 +1019,6 @@ function setImageAttributes(attributes) {
     for(var i = 0; i < 4; i< i++) {
         imageAttributes.innerHTML += attributes[i];
         imageAttributes.innerHTML += "<br>";
-    }
-}
-
-
-function addClickTwiceListener(shape) {
-    if (chosenShape == shape) {
-        shapes.setChildIndex(shape, 0);
-        selectionRect.clear();
-        chosenShape = undefined;
-        imageAttributes.innerHTML = "";
-    }
-    else {
-        chosenShape = shape;
     }
 }
 
@@ -810,7 +1079,10 @@ function deleteImageLayer(spanElement) {
 
     for(var i = 0; i < imageLayers.length; i++) {
         if (imageLayers[i].filename == filename) {
-            shapes.removeChild(imageLayers[i].image);
+            for(var j = 0; j < imageLayers[i].image.length; j++) {
+                shapes.removeChild(imageLayers[i].image[j]);
+            }
+
             for(var j = 0; j < imageLayers[i].points.length; j++) {
                 points.removeChild(imageLayers[i].points[j]);
             }
@@ -829,15 +1101,17 @@ function hideImage(spanElement) {
 
     for(var i = 0; i < imageLayers.length; i++) {
         if (imageLayers[i].filename == filename) {
-            imageLayers[i].image.alpha = !imageLayers[i].image.alpha;
-            imageLayers[i].image.interactive = !imageLayers[i].image.interactive;
-
+            for(var j = 0; j < imageLayers[i].image.length; j++) {
+                imageLayers[i].image[j].alpha = !imageLayers[i].image[j].alpha;
+                imageLayers[i].image[j].interactive = !imageLayers[i].image[j].interactive;
+            }
+            
             for(var j = 0; j < imageLayers[i].points.length; j++) {
                 imageLayers[i].points[j].interactive = !imageLayers[i].points[j].interactive;
             }
 
             spanElement.parentElement.childNodes[3].innerHTML =
-                imageLayers[i].image.alpha? "ON": "OFF";
+                imageLayers[i].image[0].alpha? "ON": "OFF";
 
             return;
         }
