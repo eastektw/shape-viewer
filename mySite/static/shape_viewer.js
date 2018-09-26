@@ -13,7 +13,6 @@ const MAX_POINTS_COUNT = 32768;  // 2 ** 15
 const LINE_WIDTH = 1.5;
 const COLORS = [
     0xeb5757,
-    0xc13f36,
     0xffb366,
     0xe07838,
     0x71da71,
@@ -82,6 +81,12 @@ else {
 
 /*Event Handler*/
 /*--------------------------------------------------------------------------*/
+functionMenu.onmousedown = function(event) {
+    event.stopPropagation();
+    event.preventDefault();
+}
+
+
 content.ondragover = function(event) {
     event.stopPropagation();
     event.preventDefault();
@@ -128,6 +133,12 @@ content.ondrop = function(event) {
             return false;
         }
 
+        for(var i = 0; i < imageLayers.length; i++) {
+            if(imageLayers[i].filename == this.filename) {
+                return false;
+            }
+        }
+
         var shapeType = attributes[1].replace("shapeType=", "").trim();
 
         for(var i = 0; i < SHAPES.length; i++) {
@@ -147,6 +158,8 @@ content.onmousedown = function() {
         selectionRect.startX = mousePosition.x;
         selectionRect.startY = mousePosition.y;
     }
+
+    isClickOnShape = false;
 };
 
 
@@ -278,11 +291,6 @@ document.onmouseup = function() {
         chosenShape = undefined;
         imageAttributes.innerHTML = "";
     }
-};
-
-
-document.onmousedown = function() {
-    isClickOnShape = false;
 };
 
 
@@ -1200,8 +1208,6 @@ function setDefaulMode() {
     functionMenu.childNodes[1].style.backgroundColor = "#e5e5e5";
     functionMenu.childNodes[3].style.backgroundColor = "#e5e5e5";
     functionMenu.childNodes[5].style.backgroundColor = "#e5e5e5";
-
-    selectionRect.clear();
 }
 
 
