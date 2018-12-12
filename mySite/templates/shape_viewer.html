@@ -39,6 +39,8 @@
                 width: 25vw;
                 float: left;
                 border-right: 2px solid #000000;
+
+                overflow:auto;
             }
 
             .function_button {
@@ -142,6 +144,33 @@
                 -o-user-select: none;
                 user-select: none;
             }
+
+            #imageStates {
+                height: 60vh;
+                overflow: auto;
+            }
+
+            #imageAttributes {
+                padding: 5px;
+                margin: 10px;
+                width: 350px;
+
+                text-align: left;
+                font-size: 25px;
+                font-weight: bold;
+                font-family: Arial, Helvetica, sans-serif;
+
+                position: absolute;
+                bottom: 20px;
+                left: 1.5%;
+
+                -webkit-user-select: none;
+                -khtml-user-select: none;
+                -moz-user-select: none;
+                -ms-user-select: none;
+                -o-user-select: none;
+                user-select: none;
+            }
         </style>
 
         {% load static %}
@@ -159,6 +188,8 @@
                     <span class="delete" onclick="deleteImageLayer(this)">X</span>
                 </div>
             </div>
+
+            <div id="imageAttributes"></div>
         </div>
         
         <div id="content">

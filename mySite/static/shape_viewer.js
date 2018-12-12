@@ -26,6 +26,7 @@ var content = document.getElementById("content");
 var imageStates = document.getElementById("imageStates");
 var functionMenu = document.getElementById("functionMenu");
 var prompt = document.getElementById("prompt");
+var imageAttributes = document.getElementById("imageAttributes");
 
 var mousePosition;
 var mode = "default";
@@ -35,6 +36,7 @@ var isClickOnShape = false;
 var drawCount = 0;
 var color;
 var chosenShape;
+var chosenShapeColor;
 
 var imageLayers = [];
 
@@ -56,14 +58,12 @@ images.interactive = true;
 app.stage.addChild(images);
 app.ticker.add(imagesMove);
 
+var points = new Container();
 var shapes = new Container();
 shapes.isEmpty = function() {
     return shapes.children.length <= 0;
 };
 images.addChild(shapes);
-
-var points = new Container();
-images.addChild(points);
 
 //for "zoom" mode and mousePosition
 var selectionRect = new Graphics();
@@ -113,7 +113,7 @@ content.ondrop = function(event) {
         if (file.isValid()) {
             addImageLayer(file);
         }
-        else{
+        else {
             alert("Invalid file format!");
         }
     };
@@ -160,7 +160,7 @@ content.onwheel = function(event) {
     if (images.scale.x <= 1) {
         scaleChange = 0.1;
     }
-    else{
+    else {
         scaleChange = 0.5;
     }
 
@@ -199,7 +199,7 @@ selectionRect.mousemove = function(event) {
 
         selectionRect
             .clear()
-            .lineStyle(lineWidth=1, color=0x000000)
+            .lineStyle(1, 0x000000)
             .moveTo(selectionRect.startX, selectionRect.startY)
             .lineTo(selectionRect.startX, selectionRect.endY)
             .lineTo(selectionRect.endX, selectionRect.endY)
@@ -275,6 +275,7 @@ document.onmouseup = function() {
     if (!isClickOnShape) {
         selectionRect.clear();
         chosenShape = undefined;
+        imageAttributes.innerHTML = "";
     }
 };
 
@@ -293,7 +294,7 @@ function imagesMove() {
 
 
 function addImageLayer(file) {
-    var newImageLayer = draw(file.result);
+    var newImageLayer = imageLayer(file.result);
     newImageLayer.filename = file.filename;
     imageLayers.push(newImageLayer);
 
@@ -307,216 +308,241 @@ function addImageLayer(file) {
 }
 
 
-function draw(fileContent) {
+function imageLayer(fileContent) {
     var attributes = fileContent.split("\n");
     var shapeType = attributes[1].replace("shapeType=", "").trim();
     color = COLORS[(drawCount++) % COLORS.length];
 
     switch(shapeType) {
         case "Line":
-            return drawLine(attributes);
+            return line(attributes);
         case "Arc":
-            return  drawArc(attributes);
+            return arc(attributes);
         case "Rect":
-            return  drawRectangle(attributes);
+            return rectangle(attributes);
         case "Circle":
-            return  drawCircle(attributes);
+            return circle(attributes);
         case "Contour":
-            return  drawContour(attributes);
+            return contour(attributes);
     }
 }
 
 
-function drawLine(attributes) {
-    var args = attributes[4].split(", ");
-    for(var i = 0; i < args.length; i++) {
-        args[i] = parseInt(args[i]) / HUNDRED_THOUSAND;
-    }
+function line(attributes) {
+    var newImageLayer = {};
+    var line = new Graphics();
+    var args = parseArgs(attributes);
 
-    var line = new Graphics()
-        .lineStyle(lineWidth=args[4] * 2, color=color)
-        .moveTo(args[0], -args[1])
-        .lineTo(args[2], -args[3])
-        .lineStyle(lineWidth=0)
+    line.xS = args[0];
+    line.yS = -args[1];
+    line.xE = args[2];
+    line.yE = -args[3];
+    line.penRadius = args[4];
+
+    newImageLayer.image = line;
+    newImageLayer.points = [
+        point(line.xS, line.yS),
+        point(line.xE, line.yE)
+    ];
+
+    drawLine(line);
+    setLineInteraction(line, attributes);
+
+    if (shapes.isEmpty())
+        setCenter(line.xS, line.yS);
+
+    shapes.addChild(line);
+
+    return newImageLayer;
+}
+
+
+function drawLine(line) {
+    line.lineStyle(line.penRadius * 2, color)
+        .moveTo(line.xS, line.yS)
+        .lineTo(line.xE, line.yE)
+        .lineStyle(0)
         .beginFill(color)
-        .drawCircle(args[0], -args[1], args[4])
-        .drawCircle(args[2], -args[3], args[4])
+        .drawCircle(line.xS, line.yS, line.penRadius)
+        .drawCircle(line.xE, line.yE, line.penRadius)
         .endFill();
+}
 
-    var hitRectX = args[0] > args[2]? args[2] - args[4]: args[0] - args[4];
-    var hitRectY = args[1] < args[3]? -args[3] - args[4]: -args[1] - args[4];
-    var hitRectWidth = Math.abs(args[0] - args[2]) + args[4] * 2;
-    var hitRectHeight = Math.abs(args[1] - args[3]) + args[4] * 2;
+
+function setLineInteraction(line, attributes) {
+    var hitRectX = line.xS > line.xE? line.xE - line.penRadius: line.xS - line.penRadius;
+    var hitRectY = -line.yS < -line.yE? line.yE - line.penRadius: line.yS - line.penRadius;
+    var hitRectWidth = Math.abs(line.xE - line.xS) + line.penRadius * 2;
+    var hitRectHeight = Math.abs(line.yE - line.yS) + line.penRadius * 2;
 
     line.interactive = true;
     line.hitArea = new Rectangle(hitRectX, hitRectY, hitRectWidth, hitRectHeight);
 
     line.click = function() {
-        if(mode != "zoom"){
-            var theta = Math.atan((args[1] - args[3]) / (args[0] - args[2]));
-            if (args[2] < args[0]) {
-                theta += Math.PI;
-            }
-
-            var xDisplacement = Math.sin(theta) * args[4];
-            var yDisplacement = Math.cos(theta) * args[4];
-
-            var startAngle = Math.atan(yDisplacement / xDisplacement);
-
-            // 因為 Math.atan() 只會回傳 PI/2 ~ -PI/2 的值，因此要針對不同象限的點做調整
-            if (xDisplacement < 0) {
-                startAngle += Math.PI;
-            }
-
-            var endAngle = startAngle + Math.PI;
-
-            selectionRect.clear()
-                .lineStyle(lineWidth=LINE_WIDTH)
-                .moveTo(args[0] + xDisplacement, -args[1] + yDisplacement, 2)
-                .lineTo(args[2] + xDisplacement, -args[3] + yDisplacement, 2)
-                .arc(args[2], -args[3], args[4], startAngle, endAngle, true)
-                .lineTo(args[0] - xDisplacement, -args[1] - yDisplacement, 2)
-                .arc(args[0], -args[1], args[4], endAngle, startAngle, true)
-
+        if (mode != "zoom") {
             isClickOnShape = true;
+
+            drawLineFrame(line);
+            setImageAttributes(attributes);
             addClickTwiceListener(line);
         }
     };
-
-    if (shapes.isEmpty()) {
-        setCenter(args[0], -args[1]);
-    }
-
-    shapes.addChild(line);
-
-    var newImageLayer = {};
-    newImageLayer.image = line;
-    newImageLayer.points = [
-        drawPoint(args[0], -args[1]),
-        drawPoint(args[2], -args[3])
-    ];
-
-    return newImageLayer;
 }
 
 
-function drawArc(attributes) {
-    var args = attributes[4].split(", ");
-    for(var i = 0; i < args.length - 1; i++) {
-        args[i] = parseInt(args[i]) / HUNDRED_THOUSAND;
+function drawLineFrame(line) {
+    var theta = -Math.atan((line.yS - line.yE) / (line.xS - line.xE));
+    if (line.xE < line.xS) {
+        theta += Math.PI;
     }
 
-    var antiClockwise = false;
-    if (args[7].trim() == "scCCW") {
-        antiClockwise = true;
-    }
+    var xDisplacement = Math.sin(theta) * line.penRadius;
+    var yDisplacement = Math.cos(theta) * line.penRadius;
 
-    var radius = Math.sqrt((args[0] - args[4])**2 + (args[1] - args[5])**2);
-    var startAngle = -Math.atan((args[1] - args[5]) / (args[0] - args[4]));
-    var endAngle = -Math.atan((args[3] - args[5]) / (args[2] - args[4]));
+    var startAngle = Math.atan(yDisplacement / xDisplacement);
 
     // 因為 Math.atan() 只會回傳 PI/2 ~ -PI/2 的值，因此要針對不同象限的點做調整
-    if (args[0] < args[4]) {
+    if (xDisplacement < 0)
         startAngle += Math.PI;
-    }
 
-    if (args[2] < args[4]) {
-        endAngle += Math.PI;
-    }
+    var endAngle = startAngle + Math.PI;
 
+    selectionRect.clear()
+        .lineStyle(LINE_WIDTH)
+        .moveTo(line.xS + xDisplacement, line.yS + yDisplacement, 2)
+        .lineTo(line.xE + xDisplacement, line.yE + yDisplacement, 2)
+        .arc(line.xE, line.yE, line.penRadius, startAngle, endAngle, true)
+        .lineTo(line.xS - xDisplacement, line.yS - yDisplacement, 2)
+        .arc(line.xS, line.yS, line.penRadius, endAngle, startAngle, true);
+}
+
+
+function arc(attributes) {
+    var newImageLayer = {};
     var arc = new Graphics();
-    if(startAngle == endAngle){
-        arc.lineStyle(lineWidth=args[6] * 2, color=color)
-            .drawCircle(args[4], -args[5], radius);
-    }
-    else{
-        arc.lineStyle(lineWidth=args[6] * 2, color=color)
-            .moveTo(args[0], -args[1])
-            .arc(args[4], -args[5], radius, startAngle, endAngle, antiClockwise)
-            .lineStyle(lineWidth=0)
-            .beginFill(color)
-            .drawCircle(args[0], -args[1], args[6])
-            .drawCircle(args[2], -args[3], args[6])
-            .endFill();
+    var args = parseArgs(attributes);
+
+    arc.xS = args[0];
+    arc.yS = -args[1];
+    arc.xE = args[2];
+    arc.yE = -args[3];
+    arc.xC = args[4];
+    arc.yC = -args[5];
+    arc.penRadius = args[6];
+    arc.antiClockwise = (args[7].trim() == "scCCW");
+
+    arc.radius = Math.sqrt((arc.xS - arc.xC)**2 + (arc.yS - arc.yC)**2);
+    arc.startAngle = Math.atan((arc.yS - arc.yC) / (arc.xS - arc.xC));
+    arc.endAngle = Math.atan((arc.yE - arc.yC) / (arc.xE - arc.xC));
+
+    // 因為 Math.atan() 只會回傳 PI/2 ~ -PI/2 的值，因此要針對不同象限的點做調整
+    if (arc.xS < arc.xC)
+        arc.startAngle += Math.PI;
+
+    if (arc.xE < arc.xC)
+        arc.endAngle += Math.PI;
+
+    newImageLayer.image = arc;
+    newImageLayer.points = [point(arc.xC, arc.yC)];
+    if (arc.startAngle != arc.endAngle){
+        newImageLayer.points.push(point(arc.xS, arc.yS));
+        newImageLayer.points.push(point(arc.xE, arc.yE));
     }
 
-    arc.interactive = true;
-    arc.hitArea = new Circle(args[4], -args[5], radius + args[6]);
-    arc.click = function(){
-        if (mode != "zoom") {
-            if(startAngle == endAngle){
-                selectionRect.clear()
-                    .lineStyle(lineWidth=LINE_WIDTH)
-                    .drawCircle(args[4], -args[5], radius + args[6])
-                    .drawCircle(args[4], -args[5], radius - args[6])
-            }
-            else{
-                selectionRect.clear()
-                    .lineStyle(lineWidth=LINE_WIDTH)
-                    .moveTo(args[0] + Math.cos(startAngle) * args[6], -args[1] + Math.sin(startAngle) * args[6])
-                    .arc(args[4], -args[5], radius + args[6], startAngle, endAngle, antiClockwise)
-                    .arc(args[2], -args[3], args[6], endAngle, startAngle, antiClockwise)
-                    .arc(args[4], -args[5], radius - args[6], endAngle, startAngle, !antiClockwise)
-                    .arc(args[0], -args[1], args[6], endAngle, startAngle, antiClockwise)
-            }
+    drawArc(arc);
+    setArcInteraction(arc, attributes);
 
-            isClickOnShape = true;
-            addClickTwiceListener(arc);
-        }
-    };
-
-    if (shapes.isEmpty()) {
-        setCenter(args[4], -args[5]);
-    }
+    if (shapes.isEmpty())
+        setCenter(arc.xC, arc.yC);
 
     shapes.addChild(arc);
 
-    var newImageLayer = {};
-    newImageLayer.image = arc;
-
-    if (startAngle == endAngle) {
-        newImageLayer.points = [
-            drawPoint(args[4], -args[5])
-        ];
-    }
-    else {
-        newImageLayer.points = [
-            drawPoint(args[0], -args[1]),
-            drawPoint(args[2], -args[3]),
-            drawPoint(args[4], -args[5])
-        ];
-    }
-
     return newImageLayer;
 }
 
 
-function drawRectangle(attributes) {
-    var args = attributes[4].split(", ");
-    for(var i = 0; i < args.length; i++) {
-        args[i] = parseInt(args[i]) / HUNDRED_THOUSAND;
+function drawArc(arc) {
+    if (arc.startAngle == arc.endAngle) {
+        arc.lineStyle(arc.penRadius * 2, color)
+            .drawCircle(arc.xC, arc.yC, arc.radius);
     }
+    else {
+        arc.lineStyle(arc.penRadius * 2, color)
+            .arc(arc.xC, arc.yC, arc.radius,
+                arc.startAngle, arc.endAngle, arc.antiClockwise)
+            .lineStyle(0)
+            .beginFill(color)
+            .drawCircle(arc.xS, arc.yS, arc.penRadius)
+            .drawCircle(arc.xE, arc.yE, arc.penRadius)
+            .endFill();
+    }
+}
 
-    var rectangle = new Graphics()
-        .beginFill(color)
-        .drawRect(args[0], -args[1], args[2], args[3])
-        .endFill();
 
-    rectangle.interactive = true;
-    rectangle.click = function() {
+function setArcInteraction(arc, attributes) {
+    arc.interactive = true;
+    arc.hitArea = new Circle(arc.xC, arc.yC, arc.radius + arc.penRadius);
+
+    arc.click = function() {
         if (mode != "zoom") {
-            selectionRect.clear()
-                .lineStyle(lineWidth=LINE_WIDTH)
-                .moveTo(args[0], -args[1])
-                .lineTo(args[0] + args[2], -args[1])
-                .lineTo(args[0] + args[2], -args[1] + args[3])
-                .lineTo(args[0], -args[1] + args[3] )
-                .lineTo(args[0], -args[1])
-
             isClickOnShape = true;
-            addClickTwiceListener(rectangle);
+
+            drawArcFrame(arc);
+            setImageAttributes(attributes);
+            addClickTwiceListener(arc);
         }
+    };
+}
+
+
+function drawArcFrame(arc) {
+    if (arc.startAngle == arc.endAngle) {
+        selectionRect.clear()
+            .lineStyle(LINE_WIDTH)
+            .drawCircle(arc.xC, arc.yC, arc.radius + arc.penRadius)
+            .drawCircle(arc.xC, arc.yC, arc.radius - arc.penRadius)
     }
+    else {
+        selectionRect.clear()
+            .lineStyle(LINE_WIDTH)
+            .moveTo(arc.xS + Math.cos(arc.startAngle) * arc.penRadius,
+                arc.yS + Math.sin(arc.startAngle) * arc.penRadius)
+
+            .arc(arc.xC, arc.yC, arc.radius + arc.penRadius,
+                arc.startAngle, arc.endAngle, arc.antiClockwise)
+
+            .arc(arc.xE, arc.yE, arc.penRadius,
+                arc.endAngle, arc.startAngle, arc.antiClockwise)
+
+            .arc(arc.xC, arc.yC, arc.radius - arc.penRadius,
+                arc.endAngle, arc.startAngle, !arc.antiClockwise)
+
+            .arc(arc.xS, arc.yS, arc.penRadius,
+                arc.endAngle, arc.startAngle, arc.antiClockwise)
+    }
+}
+
+
+function rectangle(attributes) {
+    var newImageLayer = {};
+    var rectangle = new Graphics();
+    var args = parseArgs(attributes);
+
+    rectangle._x = args[0];
+    rectangle._y = -args[1];
+    rectangle._width = args[2];
+    rectangle._height = args[3];
+
+    newImageLayer.image = rectangle;
+    newImageLayer.points = [
+        point(rectangle._x, rectangle._y),
+        point(rectangle._x + rectangle._width, rectangle._y),
+        point(rectangle._x, rectangle._y + rectangle._height),
+        point(rectangle._x + rectangle._width, rectangle._y + rectangle._height)
+    ]
+
+    drawRectangle(rectangle);
+    setRectangleInteraction(rectangle, attributes);
 
     if (shapes.isEmpty()) {
         setCenter(args[0], -args[1]);
@@ -524,69 +550,110 @@ function drawRectangle(attributes) {
 
     shapes.addChild(rectangle);
 
-    var newImageLayer = {};
-    newImageLayer.image = rectangle;
-    newImageLayer.points = [
-        drawPoint(args[0], -args[1]),
-        drawPoint(args[0] + args[2], -args[1]),
-        drawPoint(args[0], -args[1] + args[3]),
-        drawPoint(args[0] + args[2], -args[1] + args[3])
-    ]
-
     return newImageLayer;
 }
 
 
-function drawCircle(attributes) {
-    var args = attributes[4].split(", ");
-    for(var i = 0; i < args.length; i++) {
-        args[i] = parseInt(args[i]) / HUNDRED_THOUSAND;
-    }
-
-    var circle = new Graphics()
+function drawRectangle(rectangle) {
+    rectangle
         .beginFill(color)
-        .drawCircle(args[0], -args[1], args[2])
+        .drawRect(rectangle._x, rectangle._y, rectangle._width, rectangle._height)
         .endFill();
+}
 
-    circle.interactive = true;
-    circle.click = function() {
+
+function setRectangleInteraction(rectangle, attributes) {
+    rectangle.interactive = true;
+
+    rectangle.click = function() {
         if (mode != "zoom") {
-            selectionRect.clear()
-                .lineStyle(lineWidth=LINE_WIDTH)
-                .drawCircle(args[0], -args[1], args[2]);
-
             isClickOnShape = true;
-            addClickTwiceListener(circle);
-        }
-    }
 
-    if (shapes.isEmpty()) {
+            drawRectangleFrame(rectangle);
+            setImageAttributes(attributes);
+            addClickTwiceListener(rectangle);
+        }
+    };
+}
+
+
+function drawRectangleFrame(rectangle) {
+    selectionRect.clear()
+        .lineStyle(LINE_WIDTH)
+        .moveTo(rectangle._x, rectangle._y)
+        .lineTo(rectangle._x + rectangle._width, rectangle._y)
+        .lineTo(rectangle._x + rectangle._width, rectangle._y + rectangle._height)
+        .lineTo(rectangle._x, rectangle._y + rectangle._height)
+        .lineTo(rectangle._x, rectangle._y)
+}
+
+
+function circle(attributes) {
+    var newImageLayer = {};
+    var circle = new Graphics();
+    var args = parseArgs(attributes);
+
+    circle._x = args[0];
+    circle._y = -args[1];
+    circle.radius = args[2];
+
+    newImageLayer.image = circle;
+    newImageLayer.points = [point(args[0], -args[1])];
+
+    drawCircle(circle);
+    setCircleInteraction(circle, attributes);
+
+    if (shapes.isEmpty())
         setCenter(args[0], -args[1]);
-    }
 
     shapes.addChild(circle);
 
-    var newImageLayer = {};
-    newImageLayer.image = circle;
-    newImageLayer.points = [drawPoint(args[0], -args[1])];
-
     return newImageLayer;
 }
 
 
-function drawContour(attributes) {
+function drawCircle(circle) {
+    circle
+        .beginFill(color)
+        .drawCircle(circle._x, circle._y, circle.radius)
+        .endFill();
+}
+
+
+function setCircleInteraction(circle, attributes) {
+    circle.interactive = true;
+
+    circle.click = function() {
+        if (mode != "zoom") {
+            isClickOnShape = true;
+
+            drawCircleFrame(circle);
+            setImageAttributes(attributes);
+            addClickTwiceListener(circle);
+        }
+    }
+}
+
+
+function drawCircleFrame(circle) {
+    selectionRect.clear()
+        .lineStyle(LINE_WIDTH)
+        .drawCircle(circle._x, circle._y, circle.radius);
+}
+
+
+function contour(attributes) {
+    var newImageLayer = {"points": []};
+    var polygon = new Graphics();
     var args = [];
-    var polygonCount;
-    var newImageLayer = {};
-    newImageLayer.points = [];
 
-    polygonCount = parseInt(attributes[4]);
+    polygon.polygonCount = parseInt(attributes[4]);
 
-    for(var i = 0, j = 5; i < polygonCount; i++){
+    for(var i = 0, j = 5; i < polygon.polygonCount; i++) {
         var pointCount = parseInt(attributes[j++]);
 
         args[i] = [];
-        for(var k = 0; k < pointCount; k++){
+        for(var k = 0; k < pointCount; k++) {
             var tempArg = attributes[j++].split(", ");
 
             args[i].push(parseInt(tempArg[0]) / HUNDRED_THOUSAND);
@@ -594,44 +661,18 @@ function drawContour(attributes) {
         }
     }
 
-    var polygon = new Graphics()
-        .beginFill(color)
-        .drawPolygon(args[0]);
-
-    for(var i = 1; i < polygonCount; i++){
-        polygon.drawPolygon(args[i]).addHole();
-    }
-
-    polygon.endFill();
-
-    polygon.interactive = true;
-    polygon.hitArea = new Polygon(args[0]);
-    polygon.click = function(){
-        if (mode != "zoom") {
-            selectionRect.clear()
-                .lineStyle(lineWidth=LINE_WIDTH)
-                .moveTo(args[0][args[0].length - 2], args[0][args[0].length - 1]);
-
-            for(var i = 0; i < args[0].length; i += 2){
-                selectionRect.lineTo(args[0][i], args[0][i + 1]);
-            }
-
-            isClickOnShape = true;
-            addClickTwiceListener(polygon);
-        }
-    };
-
-    if (shapes.isEmpty()) {
-        setCenter(args[0][0], args[0][1]);
-    }
-
-    for(var i = 0; i < args.length; i++){
-        for(var j = 0; j < args[i].length; j += 2){
-            newImageLayer.points.push(drawPoint(args[i][j], args[i][j + 1]));
-        }
-    }
-
     newImageLayer.image = polygon;
+    for(var i = 0; i < args.length; i++) {
+        for(var j = 0; j < args[i].length; j += 2) {
+            newImageLayer.points.push(point(args[i][j], args[i][j + 1]));
+        }
+    }
+
+    drawPolygon(polygon, args);
+    setPolygonInteraction(polygon, attributes, args);
+
+    if (shapes.isEmpty())
+        setCenter(args[0][0], args[0][1]);
 
     shapes.addChild(polygon);
 
@@ -639,19 +680,81 @@ function drawContour(attributes) {
 }
 
 
+function drawPolygon(polygon, args) {
+    polygon
+        .beginFill(color)
+        .drawPolygon(args[0]);
+
+    for(var i = 1; i < polygon.polygonCount; i++) {
+        polygon.drawPolygon(args[i]).addHole();
+    }
+
+    polygon.endFill();
+}
+
+
+function setPolygonInteraction(polygon, attributes, args) {
+    polygon.interactive = true;
+    polygon.hitArea = new Polygon(args[0]);
+
+    polygon.click = function() {
+        if (mode != "zoom") {
+            isClickOnShape = true;
+
+            drawPolygonFrame(args);
+            setImageAttributes(attributes);
+            addClickTwiceListener(polygon);
+        }
+    };
+}
+
+
+function drawPolygonFrame(args) {
+    selectionRect.clear()
+        .lineStyle(LINE_WIDTH)
+        .moveTo(args[0][args[0].length - 2], args[0][args[0].length - 1]);
+
+    for(var i = 0; i < args[0].length; i += 2) {
+        selectionRect.lineTo(args[0][i], args[0][i + 1]);
+    }
+}
+
+
+function parseArgs(attributes) {
+    var args = attributes[4].split(", ");
+    for(var i = 0; i < args.length; i++) {
+        if (!isNaN(parseInt(args[i]) / HUNDRED_THOUSAND)) {
+            args[i] = parseInt(args[i]) / HUNDRED_THOUSAND;
+        }
+    }
+
+    return args;
+}
+
+
+function setImageAttributes(attributes) {
+    imageAttributes.innerHTML = "";
+    for(var i = 0; i < 4; i< i++) {
+        imageAttributes.innerHTML += attributes[i];
+        imageAttributes.innerHTML += "<br>";
+    }
+}
+
+
 function addClickTwiceListener(shape) {
-    if(chosenShape == shape){
+    if (chosenShape == shape) {
         shapes.setChildIndex(shape, 0);
         selectionRect.clear();
         chosenShape = undefined;
+        imageAttributes.innerHTML = "";
     }
-    else{
+    else {
         chosenShape = shape;
     }
 }
 
 
-function drawPoint(xCoordinate, yCoordinate) {
+function point(xCoordinate, yCoordinate) {
     var point = new Graphics()
         .beginFill(0x000000)
         .drawCircle(xCoordinate, yCoordinate, 2)
@@ -755,6 +858,8 @@ function setQueryMode() {
     mode = "query";
 
     functionMenu.childNodes[5].style.backgroundColor = "#6fcf97";
+
+    images.addChild(points);
 }
 
 
@@ -787,7 +892,7 @@ function backHome() {
                     minY = imageLayers[i].points[j].yCoordinate;
                 }
             }
-            else{
+            else {
                 maxX = minX = imageLayers[i].points[j].xCoordinate;
                 maxY = minY = imageLayers[i].points[j].yCoordinate;
             }
@@ -808,6 +913,8 @@ function backHome() {
     centerX = (maxX + minX) / 2;
     centerY = (maxY + minY) / 2;
     setCenter(centerX, centerY);
+
+    images.removeChild(points);
 }
 
 
